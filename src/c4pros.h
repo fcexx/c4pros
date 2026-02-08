@@ -1,0 +1,45 @@
+#ifndef c4pros_H
+#define c4pros_H
+
+#include <stdint.h>
+
+extern void c4pros_out_init(void);
+
+extern void c4pros_print_white(const char *s);
+extern void c4pros_print_green(const char *s);
+extern void c4pros_print_cyan(const char *s);
+extern void c4pros_print_red(const char *s);
+extern void c4pros_print_newline(void);
+extern void c4pros_clear_screen(void);
+extern void c4pros_set_color(uint8_t color);   /* 0x00–0x0F, VGA 16 цветов */
+extern void c4pros_print(const char *s);
+
+void c4pros_mem_pixel(uint16_t color, uint16_t x, uint16_t y);
+void c4pros_mem_pixel_gc_restore();
+extern void c4pros_set_video_mode(uint8_t mode);   /* AH=0, AL=mode (напр. 0x12, 0x13) */
+
+/* --- INT 0x22: File System API --- */
+extern int c4pros_fs_init(void);   /* 0=ок, 1=ошибка (CF) */
+
+extern int c4pros_fs_get_file_list(char *buf, uint16_t *size_lo, uint16_t *size_hi, uint16_t *count);
+
+extern int c4pros_fs_load_file(const char *name, void *addr);   /* размер или -1 */
+extern int c4pros_fs_write_file(const char *name, const void *data, uint16_t size);
+extern int c4pros_fs_file_exists(const char *name);   /* 1=есть, 0=нет */
+extern int c4pros_fs_create_empty(const char *name);
+extern int c4pros_fs_remove_file(const char *name);
+extern int c4pros_fs_rename_file(const char *old_name, const char *new_name);
+extern int c4pros_fs_get_file_size(const char *name);   /* размер или -1 */
+
+extern int c4pros_fs_chdir(const char *dir);
+extern int c4pros_fs_parent_dir(void);
+extern int c4pros_fs_mkdir(const char *dir);
+extern int c4pros_fs_rmdir(const char *dir);
+extern int c4pros_fs_is_dir(const char *name);   /* 1=директория */
+
+extern void c4pros_fs_save_dir(void);
+extern void c4pros_fs_restore_dir(void);
+
+extern int c4pros_fs_load_huge_file(const char *name, uint16_t load_offset, uint16_t load_segment);
+    
+#endif
