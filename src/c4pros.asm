@@ -130,6 +130,28 @@ c4pros_print:
     pop bp
     ret
 
+; --- INT 16h: клавиатура ---
+; c4pros_get_char(): ждёт нажатия, возвращает ASCII (AL).
+global c4pros_get_char
+c4pros_get_char:
+    push bp
+    mov bp, sp
+    xor ah, ah
+    int 0x16
+    and ax, 0xFF
+    pop bp
+    ret
+
+; c4pros_wait_key(): ждёт нажатия, возвращает AX (AH=scan code, AL=ASCII).
+global c4pros_wait_key
+c4pros_wait_key:
+    push bp
+    mov bp, sp
+    xor ah, ah
+    int 0x16
+    pop bp
+    ret
+
 ; --- INT 10h: BIOS видео ---
 
 ; c4pros_set_video_mode(mode): INT 10h AH=0, AL=mode. Стек: ret=[bp+2], mode=[bp+4].
@@ -140,6 +162,32 @@ c4pros_set_video_mode:
     mov al, [bp+4]
     mov ah, 0x00
     int 0x10
+    pop bp
+    ret
+
+; c4pros_cursor_set(row, col): INT 10h AH=2. Два uint8_t в одном слове: row=[bp+6], col=[bp+7].
+global c4pros_cursor_set
+c4pros_cursor_set:
+    push bp
+    mov bp, sp
+    mov ah, 0x02
+    mov bh, 0
+    mov dh, byte [bp+6]
+    mov dl, byte [bp+7]
+    int 0x10
+    pop bp
+    ret
+
+; c4pros_cursor_get(): INT 10h AH=3. Возврат AX = (row<<8)|col.
+global c4pros_cursor_get
+c4pros_cursor_get:
+    push bp
+    mov bp, sp
+    mov ah, 0x03
+    mov bh, 0
+    int 0x10
+    mov al, dl
+    mov ah, dh
     pop bp
     ret
 
@@ -397,7 +445,6 @@ c4pros_fs_restore_dir:
     int 0x22
     pop bp
     ret
-
 
 ; name=[bp+4], offset=[bp+6], segment=[bp+8]
 global c4pros_fs_load_huge_file
