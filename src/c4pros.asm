@@ -1,4 +1,4 @@
-; x16-PRos API — реализация на NASM
+; x16-PRos API - NASM implementation
 
 ; --- Important; do not touch ---
 %macro ptr_to_si 0
@@ -130,8 +130,8 @@ c4pros_print:
     pop bp
     ret
 
-; --- INT 16h: клавиатура ---
-; c4pros_get_char(): ждёт нажатия, возвращает ASCII (AL).
+; --- INT 16h: keyboard ---
+; c4pros_get_char(): waits for a key press, returns ASCII (AL).
 global c4pros_get_char
 c4pros_get_char:
     push bp
@@ -142,7 +142,7 @@ c4pros_get_char:
     pop bp
     ret
 
-; c4pros_wait_key(): ждёт нажатия, возвращает AX (AH=scan code, AL=ASCII).
+; c4pros_wait_key(): waits for a key press, returns AX (AH=scan code, AL=ASCII).
 global c4pros_wait_key
 c4pros_wait_key:
     push bp
@@ -152,9 +152,9 @@ c4pros_wait_key:
     pop bp
     ret
 
-; --- INT 10h: BIOS видео ---
+; --- INT 10h: BIOS video ---
 
-; c4pros_set_video_mode(mode): INT 10h AH=0, AL=mode. Стек: ret=[bp+2], mode=[bp+4].
+; c4pros_set_video_mode(mode): INT 10h AH=0, AL=mode. Stack: ret=[bp+2], mode=[bp+4].
 global c4pros_set_video_mode
 c4pros_set_video_mode:
     push bp
@@ -165,7 +165,7 @@ c4pros_set_video_mode:
     pop bp
     ret
 
-; c4pros_cursor_set(row, col): INT 10h AH=2. Два uint8_t в одном слове: row=[bp+6], col=[bp+7].
+; c4pros_cursor_set(row, col): INT 10h AH=2. Two uint8_t values in one word: row=[bp+6], col=[bp+7].
 global c4pros_cursor_set
 c4pros_cursor_set:
     push bp
@@ -178,7 +178,7 @@ c4pros_cursor_set:
     pop bp
     ret
 
-; c4pros_cursor_get(): INT 10h AH=3. Возврат AX = (row<<8)|col.
+; c4pros_cursor_get(): INT 10h AH=3. Returns AX = (row<<8)|col.
 global c4pros_cursor_get
 c4pros_cursor_get:
     push bp
@@ -191,7 +191,7 @@ c4pros_cursor_get:
     pop bp
     ret
 
-; c4pros_set_pixel — перенесена в main.c (inline asm GAS)
+; c4pros_set_pixel - moved to main.c (GAS inline asm)
 
 ; --- INT 0x22: File System API ---
 
@@ -241,7 +241,7 @@ c4pros_fs_load_file:
     pushf
     pop ax
     and ax, 1
-    ; при ошибке возвращаем -1, иначе BX
+; on error return -1, otherwise BX
     test ax, ax
     jz .ok
     mov bx, -1
@@ -313,7 +313,7 @@ c4pros_fs_remove_file:
     pop bp
     ret
 
-; old=[bp+4], new=[bp+6] — оба указателя, переводим в смещения
+; old=[bp+4], new=[bp+6] - both are pointers, convert to offsets
 global c4pros_fs_rename_file
 c4pros_fs_rename_file:
     push bp
@@ -411,7 +411,7 @@ c4pros_fs_rmdir:
     pop bp
     ret
 
-; AH=0x0D, SI=name. Out: CF set if directory. Возвращаем 1=dir, 0=no
+; AH=0x0D, SI=name. Out: CF set if directory. Return 1=dir, 0=no
 global c4pros_fs_is_dir
 c4pros_fs_is_dir:
     push bp
@@ -464,11 +464,11 @@ c4pros_fs_load_huge_file:
     ret
 
 ; ==================================================================
-; INT 15h — мышь (Pointing Device BIOS), как в рабочем NASM-драйвере
+; INT 15h - mouse (Pointing Device BIOS), as in the working NASM driver
 ; ==================================================================
 
-; Callback: как в рабочем NASM — [bp+8]=delta Y (byte), [bp+10]=delta X (byte), [bp+12]=buttons.
-; Накапливаем позицию в mouse_dx, mouse_dy (C читает как абсолютные координаты).
+; Callback: as in the working NASM driver - [bp+8]=delta Y (byte), [bp+10]=delta X (byte), [bp+12]=buttons.
+; Accumulate position in mouse_dx, mouse_dy (C reads them as absolute coordinates).
 MouseCallback_int15:
     push bp
     mov bp, sp
@@ -517,7 +517,7 @@ MouseCallback_int15:
     pop bp
     retf
 
-; Возврат: 0 = мышь есть, -1 = нет (в AX для C).
+; Return: 0 = mouse present, -1 = no mouse (in AX for C).
 global c4pros_mouse_int15_init
 c4pros_mouse_int15_init:
     int 0x11
@@ -567,7 +567,7 @@ c4pros_mouse_int15_disable:
     int 0x15
     ret
 
-; Глобалы для C: c4pros_mouse_poll читает и сбрасывает mouse_event_ready
+; Globals for C: c4pros_mouse_poll reads and clears mouse_event_ready
 global mouse_event_ready
 global mouse_dx
 global mouse_dy

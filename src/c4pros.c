@@ -32,7 +32,7 @@ void c4pros_get_string(char *buf, uint16_t max) {
             c4pros_print_newline();
             break;
         }
-        if (c == '\b') {   /* Backspace: стираем через вывод "\b \b", чтобы курсор PRos (INT 0x21) не расходился с нашим (INT 10h). */
+        if (c == '\b') {   /* Backspace: erase via "\b \b" output so the PRos cursor (INT 0x21) stays in sync with ours (INT 10h). */
             if (i > 0) {
                 i--;
                 buf[i] = '\0';
@@ -65,7 +65,7 @@ void c4pros_get_string(char *buf, uint16_t max) {
     buf[i] = '\0';
 }
 
-/* Пиксель через BIOS INT 10h AH=0x0C */
+/* Pixel via BIOS INT 10h AH=0x0C */
 inline void c4pros_set_pixel(uint8_t color, uint16_t x, uint16_t y) {
     __asm__ volatile (
         "movb $0x0C, %%ah\n\t"
@@ -80,7 +80,7 @@ inline void c4pros_set_pixel(uint8_t color, uint16_t x, uint16_t y) {
     );
 }
 
-/* Пиксель записью в 0xA000 (режим 0x12 planar). Без восстановления GC — быстрее. */
+/* Pixel by writing to 0xA000 (mode 0x12 planar). Without restoring GC for speed. */
 void c4pros_mem_pixel(uint8_t color, uint16_t x, uint16_t y) {
     uint16_t offset = (uint16_t)(y * 80u + (x / 8u));
     uint8_t bit_mask = (uint8_t)(1u << (7 - (x & 7u)));
@@ -121,7 +121,7 @@ void c4pros_mem_pixel(uint8_t color, uint16_t x, uint16_t y) {
     );
 }
 
-/* Горизонтальная линия записью по байтам (режим 0x12 planar). Значительно быстрее fill по пикселям. */
+/* Horizontal line by byte writes (mode 0x12 planar). Much faster than per-pixel fill. */
 void c4pros_mem_hline(uint8_t color, uint16_t x, uint16_t y, uint16_t len) {
     if (len == 0) return;
     uint16_t offset = (uint16_t)(y * 80u + (x / 8u));
@@ -202,7 +202,7 @@ void c4pros_mem_hline(uint8_t color, uint16_t x, uint16_t y, uint16_t len) {
     );
 }
 
-/* Чтение байта из 0xA000 (режим 0x12): plane 0..3, GC reg 4 = Read Map Select. */
+/* Read byte from 0xA000 (mode 0x12): plane 0..3, GC reg 4 = Read Map Select. */
 uint8_t c4pros_mem_read_byte(uint16_t offset, uint8_t plane)
 {
     uint8_t r;
@@ -227,7 +227,7 @@ uint8_t c4pros_mem_read_byte(uint16_t offset, uint8_t plane)
     return r;
 }
 
-/* Запись байта в одну плоскость: SC (0x3C4) reg 2 = Map Mask. plane 0..3. */
+/* Write byte to a single plane: SC (0x3C4) reg 2 = Map Mask. plane 0..3. */
 void c4pros_mem_write_byte(uint16_t offset, uint8_t plane, uint8_t byte)
 {
     uint8_t mask = (uint8_t)(1u << plane);
@@ -251,7 +251,7 @@ void c4pros_mem_write_byte(uint16_t offset, uint8_t plane, uint8_t byte)
     );
 }
 
-/* Восстановить Map Mask (SC 0x3C4 reg 2) = все плоскости, после операций с курсором. */
+/* Restore Map Mask (SC 0x3C4 reg 2) = all planes after cursor operations. */
 void c4pros_mem_sc_restore(void)
 {
     __asm__ volatile (
@@ -267,7 +267,7 @@ void c4pros_mem_sc_restore(void)
     );
 }
 
-/* После серии out_mem_pixel вызови один раз, если нужны стандартные регистры VGA. */
+/* Call once after a series of out_mem_pixel if you need default VGA registers. */
 void c4pros_mem_pixel_gc_restore(void) {
     __asm__ volatile (
         "movw $0x3CE, %%dx\n\t"
@@ -288,12 +288,12 @@ void c4pros_mem_pixel_gc_restore(void) {
     );
 }
 
-/* --- PS/2 Controller (порты 0x60, 0x64) --- */
+/* --- PS/2 Controller (ports 0x60, 0x64) --- */
 #define PS2_STATUS  0x64
 #define PS2_DATA    0x60
-#define PS2_STAT_OBF  0x01u   /* output buffer full — можно читать из 0x60 */
-#define PS2_STAT_IBF  0x02u   /* input buffer full — нельзя писать */
-#define PS2_STAT_AUX  0x20u   /* байт в 0x60 от мыши */
+#define PS2_STAT_OBF  0x01u   /* output buffer full - data can be read from 0x60 */
+#define PS2_STAT_IBF  0x02u   /* input buffer full - writing is not allowed */
+#define PS2_STAT_AUX  0x20u   /* byte in 0x60 is from mouse */
 
 static inline uint8_t ps2_inb(uint16_t port)
 {
@@ -306,14 +306,14 @@ static inline void ps2_outb(uint8_t val, uint16_t port)
     __asm__ volatile ("outb %b0, %%dx" : : "a" (val), "d" (port) : "memory");
 }
 
-/* Ждать, пока можно писать в контроллер (бит IBF сброшен). */
+/* Wait until writing to the controller is allowed (IBF bit cleared). */
 static void ps2_wait_write(void)
 {
     unsigned n = 0;
     while ((ps2_inb(PS2_STATUS) & PS2_STAT_IBF) && ++n < 10000u) { }
 }
 
-/* Ждать, пока в 0x60 есть байт (бит OBF установлен). Возвращает 1, если данные от мыши (AUX). */
+/* Wait until a byte is available in 0x60 (OBF bit set). Returns 1 if data is from mouse (AUX). */
 static int ps2_wait_read_mouse(uint8_t *from_mouse)
 {
     unsigned n = 0;
@@ -332,7 +332,7 @@ static uint8_t ps2_read_data(void)
     return ps2_inb(PS2_DATA);
 }
 
-/* Отправить команду мыши (0xD4 в 0x64, затем cmd в 0x60). Ждать ACK 0xFA. */
+/* Send mouse command (0xD4 to 0x64, then cmd to 0x60). Wait for ACK 0xFA. */
 static int ps2_send_mouse_cmd(uint8_t cmd)
 {
     ps2_wait_write();
@@ -348,29 +348,29 @@ static int ps2_send_mouse_cmd(uint8_t cmd)
     return 0;
 }
 
-/* Состояние приёма 3-байтового пакета мыши. */
+/* State for receiving a 3-byte mouse packet. */
 static uint8_t ps2_mouse_packet_buf[3];
 static uint8_t ps2_mouse_packet_idx;
 static int ps2_mouse_inited;
 
-/* Инициализация PS/2 мыши: включить aux, включить поток пакетов. Возврат: 0 = ок, -1 = ошибка. */
+/* PS/2 mouse initialization: enable aux and packet stream. Return: 0 = ok, -1 = error. */
 int c4pros_ps2_mouse_init(void)
 {
     ps2_mouse_packet_idx = 0;
     ps2_mouse_inited = 0;
 
-    /* Включить auxiliary device */
+    /* Enable auxiliary device */
     ps2_wait_write();
     ps2_outb(0xA8, PS2_STATUS);
     ps2_wait_write();
 
-    /* Сброс к умолчаниям (опционально, уменьшает мусор после включения) */
+    /* Reset to defaults (optional, reduces garbage after enabling) */
     if (!ps2_send_mouse_cmd(0xF6)) return -1;
 
-    /* Включить streaming (мышь шлёт пакеты при движении/нажатии) */
+    /* Enable streaming (mouse sends packets on movement/button events) */
     if (!ps2_send_mouse_cmd(0xF4)) return -1;
 
-    /* Очистить буфер 0x60 от остатков (ACK 0xFA и т.д.), иначе первый байт пакета теряется и poll не завершает пакет */
+    /* Clear leftover bytes from 0x60 (ACK 0xFA, etc.), otherwise first packet byte may be lost and poll won't complete a packet */
     while (ps2_inb(PS2_STATUS) & PS2_STAT_OBF)
         (void)ps2_read_data();
 
@@ -379,18 +379,18 @@ int c4pros_ps2_mouse_init(void)
     return 0;
 }
 
-/* Есть ли байт в буфере 0x60? Читаем и мышь, и клавиатуру; пакет мыши выделяем по биту 3 первого байта. */
+/* Is there a byte in 0x60 buffer? We read both mouse and keyboard; mouse packets are detected by bit 3 of the first byte. */
 int c4pros_ps2_mouse_byte_ready(void)
 {
     uint8_t s = ps2_inb(PS2_STATUS);
-    /* В QEMU и на части железа бит AUX не выставляется — смотрим только OBF */
+    /* In QEMU and some hardware AUX bit is not set - check only OBF */
     return (s & PS2_STAT_OBF) ? 1 : 0;
 }
 
-/* Прочитать один пакет мыши (3 байта), если готов. Возврат: 1 = пакет прочитан, 0 = нет данных/неполный пакет.
-   Синхронизация: первый байт пакета мыши в формате Microsoft всегда имеет бит 3 = 1; иначе считаем байт клавиатуры и пропускаем.
-   *buttons: биты 0=левый, 1=правый, 2=средний.
-   *dx, *dy: относительное перемещение (со знаком). */
+/* Read one mouse packet (3 bytes) if ready. Return: 1 = packet read, 0 = no data/incomplete packet.
+   Sync rule: first byte in Microsoft mouse packet format always has bit 3 = 1; otherwise treat as keyboard byte and skip.
+   *buttons: bits 0=left, 1=right, 2=middle.
+   *dx, *dy: relative movement (signed). */
 int c4pros_ps2_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
 {
     if (!ps2_mouse_inited) return 0;
@@ -398,7 +398,7 @@ int c4pros_ps2_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
     while (c4pros_ps2_mouse_byte_ready()) {
         uint8_t b = ps2_read_data();
         if (ps2_mouse_packet_idx == 0u) {
-            /* Только байты с битом 3 считаем началом пакета мыши (MS format) */
+            /* Only bytes with bit 3 are treated as mouse packet start (MS format) */
             if (!(b & 0x08u)) continue;
         }
         ps2_mouse_packet_buf[ps2_mouse_packet_idx++] = b;
@@ -408,7 +408,7 @@ int c4pros_ps2_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
             uint8_t f = ps2_mouse_packet_buf[0];
             uint8_t dx8 = ps2_mouse_packet_buf[1];
             uint8_t dy8 = ps2_mouse_packet_buf[2];
-            /* Расширение знака для 9-битных дельт */
+            /* Sign extension for 9-bit deltas */
             int16_t dx16 = (int16_t)((f & 0x10u) ? (dx8 | 0xFF00u) : dx8);
             int16_t dy16 = (int16_t)((f & 0x20u) ? (dy8 | 0xFF00u) : dy8);
             if (buttons) *buttons = f & 0x07u;
@@ -420,13 +420,13 @@ int c4pros_ps2_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
     return 0;
 }
 
-/* Сбросить выравнивание пакетов (если потеряли байт). */
+/* Reset packet alignment state (if a byte was lost). */
 void c4pros_ps2_mouse_reset_packet_state(void)
 {
     ps2_mouse_packet_idx = 0;
 }
 
-/* --- Мышь: INT 33h (драйвер) или INT 15h (callback) --- */
+/* --- Mouse: INT 33h (driver) or INT 15h (callback) --- */
 extern int c4pros_mouse_int15_init(void);
 extern void c4pros_mouse_int15_enable(void);
 extern void c4pros_mouse_int15_disable(void);
@@ -435,13 +435,13 @@ extern int16_t mouse_dx;
 extern int16_t mouse_dy;
 extern uint8_t mouse_buttons;
 
-static int mouse_use_int33;           /* 1 = опрос через INT 33h AX=3 */
+static int mouse_use_int33;           /* 1 = poll via INT 33h AX=3 */
 static int16_t mouse_last_x, mouse_last_y;
-static int mouse_first_poll;          /* первый poll после init */
-static int mouse_int33_probed;        /* уже пробовали INT 33h AX=3 в poll */
-static unsigned int mouse_zero_count; /* подряд (0,0) от INT 33h — переключиться на INT 15h */
+static int mouse_first_poll;          /* first poll after init */
+static int mouse_int33_probed;        /* INT 33h AX=3 already tried in poll */
+static unsigned int mouse_zero_count; /* consecutive (0,0) from INT 33h - switch to INT 15h */
 
-/* INT 33h AX=0: сброс, возврат AX=0xFFFF если драйвер есть */
+/* INT 33h AX=0: reset, returns AX=0xFFFF when driver exists */
 static int mouse_int33_available(void)
 {
     uint16_t ax;
@@ -449,13 +449,13 @@ static int mouse_int33_available(void)
     return (ax == 0xFFFF);
 }
 
-/* Один раз в poll пробуем INT 33h AX=3 — в части сред драйвер есть, но AX=0 не 0xFFFF */
+/* Try INT 33h AX=3 once in poll - in some environments driver exists but AX=0 is not 0xFFFF */
 static int mouse_try_int33_once(uint8_t *buttons, int16_t *dx, int16_t *dy)
 {
     uint16_t bx, cx, dx_val;
     __asm__ volatile ("movw $3, %%ax; int $0x33"
         : "=b" (bx), "=c" (cx), "=d" (dx_val) : : "ax", "cc");
-    /* координаты обычно 0..639/0..479 или 0..1023; мусор чаще большой */
+    /* coordinates are usually 0..639/0..479 or 0..1023; garbage values are often larger */
     if (cx > 2047u || dx_val > 2047u) return 0;
     mouse_use_int33 = 1;
     mouse_first_poll = 1;
@@ -485,7 +485,7 @@ int c4pros_mouse_init(void)
 void c4pros_mouse_enable(void)
 {
     if (mouse_use_int33) {
-        /* INT 33h AX=1 — включить курсор/отслеживание (некоторые драйверы без этого дают 0,0) */
+        /* INT 33h AX=1 - enable cursor/tracking (some drivers return 0,0 without this) */
         __asm__ volatile ("movw $1, %%ax; int $0x33" : : : "ax", "bx", "cx", "dx", "cc");
     } else {
         mouse_dx = 320;
@@ -511,7 +511,7 @@ int c4pros_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
         uint16_t bx, cx, dx_val;
         __asm__ volatile ("movw $3, %%ax; int $0x33"
             : "=b" (bx), "=c" (cx), "=d" (dx_val) : : "ax", "cc");
-        /* Мусор от драйвера (напр. X:-15865) — сразу на INT 15h */
+        /* Driver garbage (e.g. X:-15865) - switch immediately to INT 15h */
         if (cx > 1023u || dx_val > 1023u || (int16_t)cx < 0 || (int16_t)dx_val < 0) {
             mouse_use_int33 = 0;
             mouse_dx = 320;
@@ -524,12 +524,12 @@ int c4pros_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
                 if (dy) *dy = 240;
                 return 1;
             }
-            mouse_use_int33 = 1; /* не удалось — остаёмся на INT 33h */
+            mouse_use_int33 = 1; /* failed - stay on INT 33h */
         }
         if (buttons) *buttons = (uint8_t)(bx & 0x07u);
         if (dx) *dx = (int16_t)cx;
         if (dy) *dy = (int16_t)dx_val;
-        /* Долго только нули — переключаемся на INT 15h */
+        /* Only zeros for too long - switch to INT 15h */
         if (cx == 0 && dx_val == 0) {
             mouse_zero_count++;
             if (mouse_zero_count > 100u) {
@@ -553,7 +553,7 @@ int c4pros_mouse_poll(uint8_t *buttons, int16_t *dx, int16_t *dy)
         mouse_event_ready = 0;
         return 1;
     }
-    /* INT 15h callback не сработал — один раз пробуем INT 33h AX=3 */
+    /* INT 15h callback did not fire - try INT 33h AX=3 once */
     if (!mouse_int33_probed) {
         mouse_int33_probed = 1;
         if (mouse_try_int33_once(buttons, dx, dy)) return 1;

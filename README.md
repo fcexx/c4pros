@@ -1,44 +1,44 @@
-c4pros - это стандартная библиотека на C, предназначенная для работы 16-битных бинарных приложений на x16-PRos. Состоит из GAS и NASM.
+c4pros is a non-standard C library designed for 16-bit binary applications on x16-PRos. It includes GAS and NASM parts.
 
 ---
 
-- Сборка:
+- Build:
 ```bash
-# 1. Собираем NASM-часть
+# 1. Build the NASM part
 nasm -f elf32 c4pros.asm -o c4pros.asmo
 
-# 2. Собираем GAS-часть
+# 2. Build the GAS part
 i686-elf-gcc -c -Os -ffreestanding -m16 c4pros.c -o c4pros.co
 
-# 3. Линкуем библиотеку и Вашу программу в ELF
-i686-elf-ld -T <linker file> -o program.elf c4pros.asmo c4pros.co <другие .o файлы>
+# 3. Link the library and your program into ELF
+i686-elf-ld -T <linker file> -o program.elf c4pros.asmo c4pros.co <other .o files>
 
-# 4. Лепим 16-битный бинарник
+# 4. Convert to a 16-bit binary
 i686-elf-objcopy -O binary program.elf prog.BIN
 ```
 
-Запуск: `prog.BIN`
+Run: `prog.BIN`
 
-- Пример для linker file:
+- Example linker file:
 ```ld
-OUTPUT_FORMAT("elf32-i386") // Первичный формат: ELF32
+OUTPUT_FORMAT("elf32-i386") // Primary format: ELF32
 
-// Пусть точка входа в Вашу программу: __start:
+// Program entry point: __start:
 ENTRY(__start)
 
-// Секция в программе в NASM-части: .text.start
+// Section in the NASM part: .text.start
 
 SECTIONS
 {
-  // Обязательный адрес для входа в программу: 0x8000 по x16-PRos стандарту
+  // Required program entry address: 0x8000 by x16-PRos standard
   . = 0x8000;
 
-  // Сперва старт по умолчанию в nasm программы
+  // Default NASM program start section first
   .text.start : {
     *(.text.start)
   }
 
-  // C-код — вход по адресу 0x8100; entry_c
+  // C code entry at address 0x8100: entry_c
   . = 0x8100;
   .text : {
     *(.text .text.*)
@@ -62,7 +62,7 @@ SECTIONS
 ```
 
 ---
-Пример для точки входа программы для NASM-части:
+NASM entry point example:
 ```asm
 [BITS 16]
 
@@ -76,18 +76,18 @@ __start:
     push cs
     pop es
 
-    ; прыжок в си
+    ; jump to C entry
     jmp __entry_start
 
     ret
 ```
 
-Пример для точки входа на Си:
+C entry point example:
 ```c
 #include "c4pros.h"
 
 void entry_c() {
-    // Ваша программа
+    // Your program
     c4pros_set_pixel(0xf, 10, 10);
     // ...
 
